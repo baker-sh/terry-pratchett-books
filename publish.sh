@@ -6,20 +6,21 @@ set -euo pipefail
 cd "$(dirname "$0")"
 downloads="${DOWNLOADS:-$HOME/Downloads}"
 
-new=$(ls -t "$downloads"/owned*.js 2>/dev/null | head -n 1 || true)
+# Saved lists are owned.js, owned(1).js, ... from the page; use the newest one.
+saved() { grep -l '^const OWNED = \[' "$downloads"/owned*.js 2>/dev/null || true; }
+new=$(saved | xargs -r -d '\n' ls -t | head -n 1)
 if [[ -z $new ]]; then
-  echo "No owned*.js in $downloads. Click \"Save owned.js\" on the page first." >&2
+  echo "No saved owned.js in $downloads. Click \"Save owned.js\" on the page first." >&2
   exit 1
 fi
-if ! grep -q '^const OWNED = \[' "$new"; then
-  echo "$new doesn't look like a saved owned.js." >&2
-  exit 1
-fi
+
+# Remove every saved owned*.js once handled, so an older copy can't be published later by mistake.
+clear_saved() { saved | xargs -r -d '\n' rm --; }
 
 cp "$new" owned.js
 if git diff --quiet -- owned.js; then
   echo "Nothing to publish: $new matches what's already published."
-  rm "$new"
+  clear_saved
   exit 0
 fi
 
@@ -38,5 +39,5 @@ fi
 git add owned.js
 git commit -q -m "Update owned books" -m "$changes"
 git push -q
-rm "$new"
+clear_saved
 echo "Published. https://baker-sh.github.io/terry-pratchett-books/ updates in a minute or two."

@@ -228,8 +228,8 @@
 
   <div class="controls">
     <div class="group" role="group" aria-label="Layout">
-      <button type="button" data-layout="list" aria-pressed="true">List</button>
-      <button type="button" data-layout="shelf" aria-pressed="false">Shelf</button>
+      <button type="button" data-layout="shelf" aria-pressed="true">Shelf</button>
+      <button type="button" data-layout="list" aria-pressed="false">List</button>
     </div>
     <div class="group" role="group" aria-label="Filter">
       <button type="button" data-filter="all" aria-pressed="true">All</button>
@@ -264,7 +264,7 @@
   let filter = "all";
   let query = "";
   let view = localStorage.getItem(VIEW_KEY) === "series" ? "series" : "publication";
-  let layout = localStorage.getItem(LAYOUT_KEY) === "shelf" ? "shelf" : "list";
+  let layout = localStorage.getItem(LAYOUT_KEY) === "list" ? "list" : "shelf";
 
   // In edit mode, unpublished ticks live in localStorage; without any, start from owned.js.
   function loadWorkingCopy() {

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discworld Shelf</title>
+<style>
+  :root {
+    --parchment: #f4ecd8;
+    --parchment-dark: #e8dcbc;
+    --ink: #3b2f22;
+    --ink-faded: #7a6a55;
+    --accent: #8b3a1f;
+    --rule: #c9b48a;
+    --wood-back: #3f2c1f;
+    --wood: #8a6240;
+    --wood-light: #a87b52;
+    --row: 236px;   /* height of one shelf row, plank included */
+    --plank: 16px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--parchment-dark);
+    color: var(--ink);
+    font-family: "EB Garamond", Garamond, "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: 18px;
+    line-height: 1.4;
+  }
+  main {
+    max-width: 960px;
+    margin: 2rem auto;
+    padding: 2rem 2.25rem 2.5rem;
+    background: var(--parchment);
+    border: 1px solid var(--rule);
+    box-shadow: 0 2px 12px rgba(59, 47, 34, 0.18);
+  }
+  header { text-align: center; border-bottom: 2px double var(--rule); padding-bottom: 1rem; }
+  h1 { margin: 0; font-size: 2.1rem; font-variant: small-caps; letter-spacing: 0.04em; }
+  .subtitle { margin: 0.2rem 0 0; color: var(--ink-faded); font-style: italic; }
+  .summary { margin: 0.8rem 0 0; font-size: 1.15rem; }
+  .summary strong { color: var(--accent); }
+
+  /* Per-sub-series progress meters; doubles as the colour/glyph legend. */
+  .meters {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.45rem 1.75rem; margin: 1.1rem 0 0; text-align: left;
+  }
+  .meter { display: grid; grid-template-columns: 1.2rem 1fr auto; gap: 0 0.4rem; align-items: center; font-size: 0.95rem; }
+  .meter .glyph { color: var(--c); text-align: center; }
+  .meter .count { color: var(--ink-faded); font-variant-numeric: tabular-nums; }
+  .meter .track {
+    grid-column: 2 / 4; height: 6px; border-radius: 4px;
+    background: rgba(59, 47, 34, 0.12); overflow: hidden;
+  }
+  .meter .fill { height: 100%; width: var(--p); background: var(--c); border-radius: 4px; transition: width 0.25s; }
+
+  .callout { margin: 0.6rem 0 0; font-style: italic; color: var(--accent); }
+  .banner {
+    margin: 1rem 0 0; padding: 0.6rem 0.9rem;
+    border: 1px dashed var(--accent); background: rgba(139, 58, 31, 0.06);
+    display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; justify-content: space-between;
+    font-size: 0.95rem;
+  }
+  .banner[hidden] { display: none; }
+  .banner .changes { color: var(--ink-faded); }
+  .banner .actions { display: flex; gap: 0.5rem; align-items: center; }
+  .banner a { color: var(--accent); }
+  .search {
+    width: 100%; margin: 1.25rem 0 0; padding: 0.5rem 0.75rem;
+    font: inherit; color: var(--ink); background: #fbf7ec;
+    border: 1px solid var(--rule); border-radius: 3px;
+  }
+  .search:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem;
+    justify-content: space-between; align-items: center;
+    margin: 0.75rem 0 0.75rem;
+  }
+  .group { display: inline-flex; }
+  button {
+    font: inherit; font-size: 0.95rem;
+    background: transparent; color: var(--ink);
+    border: 1px solid var(--rule); padding: 0.25rem 0.75rem;
+    cursor: pointer;
+  }
+  .group button + button { border-left: none; }
+  button:hover { background: var(--parchment-dark); }
+  .group button[aria-pressed="true"] { background: var(--ink); color: var(--parchment); border-color: var(--ink); }
+
+  h2 {
+    font-size: 1.15rem; font-variant: small-caps; letter-spacing: 0.05em;
+    color: var(--accent); margin: 1.4rem 0 0.35rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  h2 .glyph { color: var(--c); margin-right: 0.35rem; }
+
+  /* ---- Bookshelf ---- */
+  .shelf {
+    display: flex; flex-wrap: wrap; align-items: flex-end; align-content: flex-start;
+    padding: 0 14px; gap: 0 3px;
+    border: 12px solid var(--wood); border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    background:
+      repeating-linear-gradient(to bottom,
+        transparent 0, transparent calc(var(--row) - var(--plank)),
+        var(--wood-light) calc(var(--row) - var(--plank)), var(--wood-light) calc(var(--row) - var(--plank) + 3px),
+        var(--wood) calc(var(--row) - var(--plank) + 3px), var(--wood) var(--row)),
+      linear-gradient(to right, rgba(0,0,0,0.25), transparent 6%, transparent 94%, rgba(0,0,0,0.25)),
+      var(--wood-back);
+    box-shadow: inset 0 6px 14px rgba(0,0,0,0.35);
+  }
+  .slot { height: var(--row); padding-bottom: var(--plank); display: flex; align-items: flex-end; }
+  .spine {
+    position: relative;
+    width: var(--w); height: var(--h);
+    padding: 10px 0 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    border: none; border-radius: 3px 3px 1px 1px;
+    background: var(--c); color: var(--ink-on);
+    font-family: inherit; line-height: 1.1;
+    box-shadow:
+      inset 3px 0 4px rgba(255,255,255,0.22), inset -4px 0 6px rgba(0,0,0,0.28),
+      0 -1px 0 rgba(0,0,0,0.3);
+    transition: transform 0.15s;
+  }
+  /* Gilt bands near the top and bottom of each spine. */
+  .spine::before, .spine::after {
+    content: ""; position: absolute; left: 4px; right: 4px; height: 2px;
+    background: currentColor; opacity: 0.45;
+  }
+  .spine::before { top: 30px; }
+  .spine::after { bottom: 30px; }
+  .spine:hover { background: var(--c); transform: translateY(-6px); }
+  .spine:focus-visible { outline: 3px solid var(--parchment); outline-offset: 2px; }
+  .spine .glyph { font-size: 0.85rem; height: 16px; }
+  .spine .spine-title {
+    writing-mode: vertical-rl; flex: 1; min-height: 0;
+    display: flex; align-items: center; justify-content: center;
+    margin: 12px 0; overflow: hidden;
+    font-size: var(--fs); font-weight: 600; letter-spacing: 0.02em; text-align: center;
+  }
+  .spine .spine-num { font-size: 0.75rem; font-variant-numeric: lining-nums; opacity: 0.85; height: 16px; }
+
+  /* Wanted books are empty gaps: a faint outline where the book would stand. */
+  .spine.want {
+    background: rgba(255,255,255,0.04);
+    color: rgba(244, 236, 216, 0.55);
+    box-shadow: none;
+    outline: 1.5px dashed color-mix(in srgb, var(--c) 70%, transparent);
+    outline-offset: -1.5px;
+  }
+  .spine.want::before, .spine.want::after { opacity: 0.2; }
+  .spine.want .glyph { color: var(--c); }
+  .spine.want:hover { background: rgba(255,255,255,0.1); }
+
+  .spine.readonly { cursor: default; }
+  .spine.readonly:hover { transform: none; }
+  .spine.readonly.want:hover { background: rgba(255,255,255,0.04); }
+
+  .shelf-base { height: 12px; background: var(--wood); border-radius: 0 0 4px 4px; margin-bottom: 0.25rem; }
+  .hint { text-align: center; color: var(--ink-faded); font-style: italic; font-size: 0.9rem; margin: 0.5rem 0 0; }
+
+  /* ---- List ---- */
+  ul { list-style: none; margin: 0; padding: 0; }
+  li .row {
+    display: grid; grid-template-columns: 1.5rem 2.2rem 1fr auto; gap: 0.5rem;
+    align-items: baseline; padding: 0.35rem 0.25rem;
+    border-bottom: 1px dotted var(--rule);
+  }
+  li label.row:hover { background: var(--parchment-dark); }
+  li label.row { cursor: pointer; }
+  li .row.readonly { grid-template-columns: 2.2rem 1fr auto; cursor: default; }
+  .status { font-size: 0.78rem; font-weight: normal; padding: 0.05rem 0.5rem; border-radius: 999px; margin-left: 0.5rem; white-space: nowrap; }
+  .status.has { background: #dcebd5; color: #23502b; }
+  .status.looking { border: 1px solid var(--accent); color: var(--accent); }
+  input[type="checkbox"] { accent-color: var(--accent); width: 1.05rem; height: 1.05rem; transform: translateY(2px); }
+  .num { color: var(--ink-faded); text-align: right; font-variant-numeric: oldstyle-nums; }
+  .title { font-weight: 600; }
+  .year { color: var(--ink-faded); font-weight: normal; font-size: 0.9rem; margin-left: 0.35rem; }
+  .tag { font-size: 0.8rem; color: var(--ink-faded); white-space: nowrap; }
+  .tag .glyph { color: var(--c); margin-right: 0.3rem; }
+  li.owned .title { color: var(--ink-faded); }
+  .empty { text-align: center; color: var(--ink-faded); font-style: italic; margin: 1.5rem 0; }
+
+
+  @media (max-width: 560px) {
+    main { margin: 0; padding: 1.25rem 0.75rem; border: none; }
+    .shelf { padding: 0 6px; border-width: 8px; }
+    li .row { grid-template-columns: 1.5rem 1.8rem 1fr; }
+    li .row.readonly { grid-template-columns: 1.8rem 1fr; }
+    li .row.readonly .tag { grid-column: 2; }
+    .tag { grid-column: 3; justify-self: start; }
+  }
+
+  /* Printing always gives a list of wanted books, whatever the current layout or filter. */
+  @media print {
+    body { background: white; font-size: 12pt; }
+    main { margin: 0; padding: 0; border: none; box-shadow: none; max-width: none; background: white; }
+    .controls, .subtitle, .summary, .meters, #shelf { display: none !important; }
+    #list { display: block !important; }
+    .print-only { display: block !important; }
+    li.owned, section.all-owned { display: none !important; }
+    li:not(.owned) { display: block !important; }
+    #list section { display: block !important; }
+    li .row { padding: 0.15rem 0; }
+    .banner, .callout, .search { display: none !important; }
+    input[type="checkbox"] { appearance: none; border: 1px solid black; width: 0.8rem; height: 0.8rem; }
+  }
+  .print-only { display: none; margin: 0.4rem 0 0; font-style: italic; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Darren's Discworld Shelf</h1>
+    <p class="subtitle">The forty-one Discworld novels of Terry Pratchett</p>
+    <p class="summary" id="summary"></p>
+    <p class="callout" id="callout" hidden>Found one I'm missing? Let me know!</p>
+    <p class="print-only">Shopping list: <span id="want-count-print"></span> still to get</p>
+    <div class="meters" id="meters"></div>
+  </header>
+
+  <div class="banner" id="banner" hidden></div>
+
+  <input type="search" class="search" id="search" placeholder="Search titles…" aria-label="Search titles" autocomplete="off">
+
+  <div class="controls">
+    <div class="group" role="group" aria-label="Layout">
+      <button type="button" data-layout="list" aria-pressed="true">List</button>
+      <button type="button" data-layout="shelf" aria-pressed="false">Shelf</button>
+    </div>
+    <div class="group" role="group" aria-label="Filter">
+      <button type="button" data-filter="all" aria-pressed="true">All</button>
+      <button type="button" data-filter="owned" aria-pressed="false">Owned</button>
+      <button type="button" data-filter="want" aria-pressed="false">Want</button>
+    </div>
+    <div class="group" role="group" aria-label="Order">
+      <button type="button" data-view="publication" aria-pressed="true">Publication order</button>
+      <button type="button" data-view="series" aria-pressed="false">By sub-series</button>
+    </div>
+  </div>
+
+  <div id="shelf"></div>
+  <div id="list"></div>
+</main>
+
+<script src="books.js"></script>
+<script src="owned.js"></script>
+<script>
+  const STORAGE_KEY = "discworld-shelf:owned";
+  const VIEW_KEY = "discworld-shelf:view";
+  const LAYOUT_KEY = "discworld-shelf:layout";
+  const SERIES_BY_NAME = Object.fromEntries(SERIES.map(s => [s.name, s]));
+  const BOOK_BY_NUM = Object.fromEntries(BOOKS.map(b => [b.n, b]));
+  const PUBLISHED = new Set(OWNED.filter(n => BOOK_BY_NUM[n]));
+
+  // Opened from disk: Darren's edit mode. Hosted (or ?view): read-only view for friends.
+  const LOCAL = location.protocol === "file:";
+  const EDITING = LOCAL && !new URLSearchParams(location.search).has("view");
+
+  let owned = EDITING ? loadWorkingCopy() : new Set(PUBLISHED);
+  let filter = "all";
+  let query = "";
+  let view = localStorage.getItem(VIEW_KEY) === "series" ? "series" : "publication";
+  let layout = localStorage.getItem(LAYOUT_KEY) === "shelf" ? "shelf" : "list";
+
+  // In edit mode, unpublished ticks live in localStorage; without any, start from owned.js.
+  function loadWorkingCopy() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved === null) return new Set(PUBLISHED);
+      return new Set(JSON.parse(saved).filter(n => BOOK_BY_NUM[n]));
+    } catch {
+      return new Set(PUBLISHED);
+    }
+  }
+
+  function saveWorkingCopy() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...owned].sort((a, b) => a - b)));
+  }
+
+  function toggle(book) {
+    owned.has(book.n) ? owned.delete(book.n) : owned.add(book.n);
+    saveWorkingCopy();
+    render();
+  }
+
+  function el(tag, className, text) {
+    const e = document.createElement(tag);
+    if (className) e.className = className;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function glyph(series) {
+    const g = el("span", "glyph", SERIES_BY_NAME[series].glyph);
+    g.setAttribute("aria-hidden", "true");
+    g.style.setProperty("--c", SERIES_BY_NAME[series].colour);
+    return g;
+  }
+
+  const normalise = s => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  function matchesSearch(book) {
+    const q = normalise(query);
+    return !q || normalise(book.title).includes(q) || String(book.n) === q;
+  }
+
+  function visible(book) {
+    if (!matchesSearch(book)) return false;
+    if (filter === "owned") return owned.has(book.n);
+    if (filter === "want") return !owned.has(book.n);
+    return true;
+  }
+
+  // Groups of books to render: one group in publication order, or one per sub-series.
+  function groups() {
+    if (view === "publication") return [{ books: BOOKS }];
+    return SERIES.map(s => ({ series: s.name, books: BOOKS.filter(b => b.series === s.name) }));
+  }
+
+  function groupHeading(series, books) {
+    const h2 = el("h2");
+    h2.append(glyph(series), `${series} (${books.filter(b => owned.has(b.n)).length}/${books.length})`);
+    return h2;
+  }
+
+  // ---- Shelf ----
+
+  function spine(book) {
+    const s = SERIES_BY_NAME[book.series];
+    const has = owned.has(book.n);
+    const long = book.title.length > 22;
+    const b = el(EDITING ? "button" : "div", "spine" + (has ? "" : " want") + (EDITING ? "" : " readonly"));
+    const info = `${book.n}. ${book.title} (${book.year}) · ${book.series}`;
+    if (EDITING) {
+      b.type = "button";
+      b.setAttribute("aria-pressed", has);
+      b.title = `${info}\n${has ? "Owned" : "Want"}: click to mark as ${has ? "Want" : "Owned"}`;
+      b.addEventListener("click", () => toggle(book));
+    } else {
+      b.title = `${info}\n${has ? "✓ Darren has it" : "Still looking"}`;
+      b.setAttribute("role", "img");
+      b.setAttribute("aria-label", `${book.title}: ${has ? "Darren has it" : "still looking"}`);
+    }
+    b.style.setProperty("--c", s.colour);
+    b.style.setProperty("--ink-on", s.ink);
+    // Vary heights a little so the shelf looks lived-in; stable per book.
+    b.style.setProperty("--h", `${172 + (book.n * 37) % 44}px`);
+    b.style.setProperty("--w", long ? "54px" : book.title.length > 14 ? "44px" : "38px");
+    b.style.setProperty("--fs", long ? "11.5px" : "13.5px");
+    b.append(el("span", "glyph", s.glyph), el("span", "spine-title", book.title), el("span", "spine-num", book.n));
+    return b;
+  }
+
+  function buildShelf(books) {
+    const wrap = el("div");
+    const shelf = el("div", "shelf");
+    for (const book of books.filter(visible)) {
+      const slot = el("div", "slot");
+      slot.append(spine(book));
+      shelf.append(slot);
+    }
+    wrap.append(shelf, el("div", "shelf-base"));
+    return wrap;
+  }
+
+  function renderShelf() {
+    const root = document.getElementById("shelf");
+    root.replaceChildren();
+    for (const g of groups()) {
+      if (!g.books.some(visible)) continue;
+      const section = el("section");
+      if (g.series) section.append(groupHeading(g.series, g.books));
+      section.append(buildShelf(g.books));
+      root.append(section);
+    }
+    if (BOOKS.some(visible)) root.append(el("p", "hint", EDITING
+      ? "Click a book to mark it as owned, or click again to put it back on the wish list."
+      : "Coloured books are on Darren's shelf. Dashed outlines are ones Darren is still looking for."));
+  }
+
+  // ---- List ----
+
+  function bookItem(book) {
+    const has = owned.has(book.n);
+    const li = el("li");
+    li.classList.toggle("owned", has);
+    const title = el("span", "title", book.title);
+    title.append(el("span", "year", book.year));
+    const tag = el("span", "tag");
+    tag.append(glyph(book.series), book.series);
+    if (EDITING) {
+      const row = el("label", "row");
+      const box = el("input");
+      box.type = "checkbox";
+      box.checked = has;
+      box.addEventListener("change", () => toggle(book));
+      row.append(box, el("span", "num", book.n), title, tag);
+      li.append(row);
+    } else {
+      title.append(el("span", "status " + (has ? "has" : "looking"), has ? "✓ Darren has it" : "Still looking"));
+      const row = el("div", "row readonly");
+      row.append(el("span", "num", book.n), title, tag);
+      li.append(row);
+    }
+    return li;
+  }
+
+  // Every book is rendered so printing can always show the full Want list;
+  // the on-screen filter and search just hide rows.
+  function renderList() {
+    const root = document.getElementById("list");
+    root.replaceChildren();
+    for (const g of groups()) {
+      const ul = el("ul");
+      for (const book of g.books) {
+        const li = bookItem(book);
+        if (!visible(book)) li.hidden = true;
+        ul.append(li);
+      }
+      if (!g.series) { root.append(ul); continue; }
+      const section = el("section");
+      if (g.books.every(b => owned.has(b.n))) section.classList.add("all-owned");
+      if (!g.books.some(visible)) section.hidden = true;
+      section.append(groupHeading(g.series, g.books), ul);
+      root.append(section);
+    }
+  }
+
+  function renderMeters() {
+    const root = document.getElementById("meters");
+    root.replaceChildren();
+    for (const s of SERIES) {
+      const books = BOOKS.filter(b => b.series === s.name);
+      const have = books.filter(b => owned.has(b.n)).length;
+      const m = el("div", "meter");
+      m.style.setProperty("--c", s.colour);
+      m.style.setProperty("--p", `${(100 * have) / books.length}%`);
+      m.title = EDITING ? `${s.name}: ${have} of ${books.length} owned` : `${s.name}: Darren has ${have} of ${books.length}`;
+      const track = el("div", "track");
+      track.append(el("div", "fill"));
+      m.append(glyph(s.name), el("span", "name", s.name), el("span", "count", `${have}/${books.length}`), el("span"), track);
+      root.append(m);
+    }
+  }
+
+  // ---- Edit-mode banner: unpublished changes and how to publish them ----
+
+  function ownedJs() {
+    const lines = [...owned].sort((a, b) => a - b).map(n => `  ${n}, // ${BOOK_BY_NUM[n].title}`);
+    return "// Books Darren owns, by Discworld publication number.\n"
+      + "// Made by the \"Save owned.js\" button in edit mode; publish it with ./publish.sh.\n"
+      + "const OWNED = [\n" + lines.map(l => l + "\n").join("") + "];\n";
+  }
+
+  function saveOwnedJs() {
+    const a = el("a");
+    a.href = URL.createObjectURL(new Blob([ownedJs()], { type: "text/javascript" }));
+    a.download = "owned.js";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function discardChanges() {
+    if (!confirm("Discard your unpublished changes and go back to the published list?")) return;
+    owned = new Set(PUBLISHED);
+    localStorage.removeItem(STORAGE_KEY);
+    render();
+  }
+
+  function button(text, onClick) {
+    const b = el("button", "", text);
+    b.type = "button";
+    b.addEventListener("click", onClick);
+    return b;
+  }
+
+  function renderBanner() {
+    const banner = document.getElementById("banner");
+    banner.hidden = !LOCAL;
+    if (!LOCAL) return;
+    banner.replaceChildren();
+    if (!EDITING) {
+      const back = el("a", "", "Back to edit mode");
+      back.href = location.pathname;
+      banner.append(el("span", "", "Previewing what friends see."), back);
+      return;
+    }
+    const added = BOOKS.filter(b => owned.has(b.n) && !PUBLISHED.has(b.n));
+    const removed = BOOKS.filter(b => !owned.has(b.n) && PUBLISHED.has(b.n));
+    const n = added.length + removed.length;
+    const text = el("div");
+    const preview = el("a", "", "Preview friend view");
+    preview.href = "?view";
+    const actions = el("div", "actions");
+    if (n === 0) {
+      text.append(el("strong", "", "Edit mode."), " Everything is published.");
+      actions.append(preview);
+    } else {
+      text.append(el("strong", "", `${n} unpublished change${n === 1 ? "" : "s"}: `),
+        el("span", "changes", [...added.map(b => `+ ${b.title}`), ...removed.map(b => `− ${b.title}`)].join(", ")));
+      actions.append(button("Save owned.js", saveOwnedJs), button("Discard", discardChanges), preview);
+    }
+    banner.append(text, actions);
+  }
+
+  function emptyMessage() {
+    if (query.trim()) return `No titles match “${query.trim()}”.`;
+    if (filter === "owned") return EDITING ? "Nothing on the shelf yet." : "Darren hasn't got any of these yet.";
+    return EDITING ? "You have them all. Well done." : "Darren has them all!";
+  }
+
+  function render() {
+    renderBanner();
+    renderMeters();
+    renderShelf();
+    renderList();
+    document.getElementById("shelf").hidden = layout !== "shelf";
+    document.getElementById("list").hidden = layout !== "list";
+
+    if (!BOOKS.some(visible)) document.getElementById(layout).append(el("p", "empty", emptyMessage()));
+
+    const summary = document.getElementById("summary");
+    summary.replaceChildren();
+    if (EDITING) summary.append(el("strong", "", owned.size), ` of ${BOOKS.length} owned`);
+    else summary.append("Darren has ", el("strong", "", owned.size), ` of the ${BOOKS.length}`);
+    document.getElementById("want-count-print").textContent = BOOKS.length - owned.size;
+    document.querySelectorAll("[data-filter]").forEach(b => b.setAttribute("aria-pressed", b.dataset.filter === filter));
+    document.querySelectorAll("[data-view]").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === view));
+    document.querySelectorAll("[data-layout]").forEach(b => b.setAttribute("aria-pressed", b.dataset.layout === layout));
+  }
+
+  if (!EDITING) {
+    document.getElementById("callout").hidden = false;
+    document.querySelector("[data-filter=owned]").textContent = "Has it";
+    document.querySelector("[data-filter=want]").textContent = "Still looking";
+  }
+
+  document.getElementById("search").addEventListener("input", e => { query = e.target.value; render(); });
+  document.querySelectorAll("[data-filter]").forEach(b =>
+    b.addEventListener("click", () => { filter = b.dataset.filter; render(); }));
+  document.querySelectorAll("[data-view]").forEach(b =>
+    b.addEventListener("click", () => { view = b.dataset.view; localStorage.setItem(VIEW_KEY, view); render(); }));
+  document.querySelectorAll("[data-layout]").forEach(b =>
+    b.addEventListener("click", () => { layout = b.dataset.layout; localStorage.setItem(LAYOUT_KEY, layout); render(); }));
+
+  render();
+</script>
+</body>
+</html>

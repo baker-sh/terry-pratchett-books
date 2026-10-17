@@ -40,4 +40,4 @@ git add owned.js
 git commit -q -m "Update owned books" -m "$changes"
 git push -q
 clear_saved
-echo "Published. https://baker-sh.github.io/terry-pratchett-books/ updates in a minute or two."
+echo "Published. https://wanted-books.baker.sh/ updates in a minute or two."

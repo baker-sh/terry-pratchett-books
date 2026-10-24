@@ -24,6 +24,7 @@ const OWNED = [
   23, // Carpe Jugulum
   24, // The Fifth Elephant
   25, // The Truth
+  28, // The Amazing Maurice and His Educated Rodents
   29, // Night Watch
   31, // Monstrous Regiment
   36, // Making Money
